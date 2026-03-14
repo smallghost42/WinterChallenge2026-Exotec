@@ -109,7 +109,7 @@ The bot uses 15 tunable parameters organized into categories:
 ### Evaluation
 Each genome is evaluated by running multiple matches against:
 1. **WaitBot**: The trivial WAIT bot (baseline)
-2. **DefaultBot**: Bot with default parameters
+2. **BaselineBot**: Bot with baseline parameters
 3. **PreviousBest**: Best genomes from prior generations
 
 ### Fitness Scoring

@@ -144,7 +144,8 @@ def main():
     print(f"\nOpponents: {[name for name, _ in opponents]}")
 
     # Generate match seeds for reproducibility across generations
-    match_seeds = [random.randint(1, 2**31) for _ in range(args.matches * 2)]
+    max_opponents = len(opponents) + 4  # account for future PrevBest opponents
+    match_seeds = [random.randint(1, 2**31) for _ in range(args.matches * max_opponents)]
 
     # Initialize GA
     ga = GeneticAlgorithm(
@@ -201,11 +202,8 @@ def main():
                 os.close(fd)
                 bg.save(path)
                 opp_cmd = f"{BOT_BINARY} --config {path}"
-                # Check if this opponent already exists
-                existing_names = [name for name, _ in opponents]
                 opp_name = f"PrevBest_Gen{gen+1}_{i}"
                 if len(opponents) > 5:
-                    # Replace older previous-best opponents
                     opponents = [o for o in opponents if not o[0].startswith("PrevBest")]
                 opponents.append((opp_name, opp_cmd))
 

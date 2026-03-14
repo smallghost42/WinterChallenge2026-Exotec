@@ -182,9 +182,9 @@ def get_baseline_opponents():
     # 1. The WAIT bot (Boss.py)
     opponents.append(("WaitBot", f"python3 {BOSS_SCRIPT}"))
 
-    # 2. Default parameters bot
-    default_config = os.path.join(REPO_ROOT, "config", "optimized_params.json")
-    if os.path.exists(default_config) and os.path.exists(BOT_BINARY):
-        opponents.append(("DefaultBot", f"{BOT_BINARY} --config {default_config}"))
+    # 2. Bot with existing optimized/baseline parameters
+    baseline_config = os.path.join(REPO_ROOT, "config", "optimized_params.json")
+    if os.path.exists(baseline_config) and os.path.exists(BOT_BINARY):
+        opponents.append(("BaselineBot", f"{BOT_BINARY} --config {baseline_config}"))
 
     return opponents
