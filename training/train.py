@@ -21,7 +21,14 @@ import time
 
 from genome import Genome
 from genetic import GeneticAlgorithm
-from match_runner import evaluate_genome, get_baseline_opponents, BOT_BINARY, REPO_ROOT
+from match_runner import (
+    evaluate_genome,
+    get_baseline_opponents,
+    BOT_BINARY,
+    REPO_ROOT,
+    BOSS1_BINARY,
+    BOSS2_BINARY,
+)
 
 
 def parse_args():
@@ -61,6 +68,46 @@ def build_bot():
         print(f"ERROR: Bot binary not found at {BOT_BINARY}")
         sys.exit(1)
     print("Bot built successfully.")
+
+
+def _find_boss_source(filename):
+    """Find an optional boss source file in common locations."""
+    candidates = [
+        os.path.join(REPO_ROOT, filename),
+        os.path.join(REPO_ROOT, "bot", filename),
+        os.path.join(REPO_ROOT, "training", filename),
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return path
+    return None
+
+
+def build_optional_bosses():
+    """Compile optional boss1.cpp / boss2.cpp binaries when present."""
+    bosses = [
+        ("boss1.cpp", BOSS1_BINARY),
+        ("boss2.cpp", BOSS2_BINARY),
+    ]
+
+    for source_name, output_binary in bosses:
+        source_path = _find_boss_source(source_name)
+        if source_path is None:
+            continue
+
+        print(f"Building optional opponent from {source_path}...")
+        ret = os.system(
+            f"g++ -std=c++17 -O2 -Wall -Wextra -o {output_binary} {source_path}"
+        )
+        if ret != 0:
+            print(f"ERROR: Failed to build optional boss source: {source_path}")
+            sys.exit(1)
+
+        if not os.path.exists(output_binary):
+            print(f"ERROR: Optional boss binary not found at {output_binary}")
+            sys.exit(1)
+
+        print(f"Built optional boss binary: {output_binary}")
 
 
 def build_referee():
@@ -138,6 +185,7 @@ def main():
 
     # Build
     build_bot()
+    build_optional_bosses()
     build_referee()
 
     # Get opponents
