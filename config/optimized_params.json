@@ -1,0 +1,17 @@
+{
+    "apple_weight": 3.0,
+    "apple_dist_decay": 0.15,
+    "cluster_bonus": 0.4,
+    "safety_weight": 5.0,
+    "dead_end_penalty": 8.0,
+    "fall_penalty": 2.0,
+    "wall_penalty": 1.0,
+    "space_weight": 2.0,
+    "height_weight": 0.5,
+    "center_weight": 0.3,
+    "opponent_proximity": 3.0,
+    "aggression": 1.0,
+    "survival_priority": 4.0,
+    "length_bonus": 0.2,
+    "body_block_bonus": 0.5
+}
