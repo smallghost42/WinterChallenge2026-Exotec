@@ -121,9 +121,14 @@ def evaluate_genome(genome, opponents, matches_per_opponent=2, seeds=None, paral
     else:
         results = _run_matches_sequential(match_args)
 
+    invalid_results = 0
+
     # Record results
     for idx, (s1, s2) in enumerate(results):
-        opp_idx = idx // matches_per_opponent
+        # Match failed (timeout/classpath/runtime error); do not score it as a draw.
+        if s1 < 0 or s2 < 0:
+            invalid_results += 1
+            continue
         match_within_opp = idx % matches_per_opponent
         if match_within_opp % 2 == 0:
             # We were player 1
@@ -131,6 +136,9 @@ def evaluate_genome(genome, opponents, matches_per_opponent=2, seeds=None, paral
         else:
             # We were player 2
             genome.record_match(s2, s1)
+
+    if invalid_results:
+        print(f"  Warning: {invalid_results}/{len(results)} matches failed during evaluation.")
 
     # Cleanup
     try:

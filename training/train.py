@@ -66,7 +66,8 @@ def build_bot():
 def build_referee():
     """Compile the Java referee/simulator."""
     print("Building referee...")
-    ret = os.system(f"cd {REPO_ROOT} && mvn compile -q -Dmaven.test.skip=true")
+    # HeadlessRunner is in src/test/java, so we must compile test sources too.
+    ret = os.system(f"cd {REPO_ROOT} && mvn test-compile -q -DskipTests")
     if ret != 0:
         print("ERROR: Failed to build referee. Make sure Maven and Java 17 are installed.")
         sys.exit(1)
