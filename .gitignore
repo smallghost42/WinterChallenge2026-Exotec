@@ -8,3 +8,16 @@ statement_en.html
 statement_fr.html
 src/main/resources/view/node_modules/
 JulienMain.java
+
+# Bot build artifacts
+bot/bot
+bot/*.o
+
+# Training artifacts
+config/optimized_params_gen*.json
+config/optimized_params_best_ever.json
+config/top_genomes/
+target/.training_cp.txt
+__pycache__/
+*.pyc
+training/__pycache__/
