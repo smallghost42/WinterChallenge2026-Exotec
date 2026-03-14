@@ -17,21 +17,28 @@ using namespace std;
 // Genome Parameters - tunable via config file or embedded defaults
 // ============================================================
 struct Params {
-    double apple_weight         = 3.0;
-    double apple_dist_decay     = 0.15;
-    double cluster_bonus        = 0.4;
-    double safety_weight        = 5.0;
-    double dead_end_penalty     = 8.0;
-    double fall_penalty         = 2.0;
-    double wall_penalty         = 1.0;
-    double space_weight         = 2.0;
-    double height_weight        = 0.5;
-    double center_weight        = 0.3;
-    double opponent_proximity   = 3.0;
-    double aggression           = 1.0;
-    double survival_priority    = 4.0;
-    double length_bonus         = 0.2;
-    double body_block_bonus     = 0.5;
+    double apple_weight         = 3.8;
+    double apple_dist_decay     = 0.20;
+    double cluster_bonus        = 0.25;
+    double safety_weight        = 7.0;
+    double dead_end_penalty     = 11.0;
+    double fall_penalty         = 6.0;
+    double wall_penalty         = 1.4;
+    double space_weight         = 3.6;
+    double height_weight        = 0.7;
+    double center_weight        = 0.2;
+    double opponent_proximity   = 4.2;
+    double aggression           = 0.8;
+    double survival_priority    = 6.0;
+    double length_bonus         = 0.35;
+    double body_block_bonus     = 1.1;
+    double enemy_above_penalty  = 3.5;
+    double head_on_win_bonus    = 3.0;
+    double head_on_lose_penalty = 5.0;
+    double head_on_even_penalty = 1.2;
+    double top_edge_penalty     = 1.2;
+    double side_edge_penalty    = 0.4;
+    double ladder_bonus         = 1.6;
 };
 
 static Params PARAMS;
@@ -83,6 +90,13 @@ bool loadParams(const string& filename) {
         else if (key == "survival_priority")  PARAMS.survival_priority = v;
         else if (key == "length_bonus")       PARAMS.length_bonus = v;
         else if (key == "body_block_bonus")   PARAMS.body_block_bonus = v;
+        else if (key == "enemy_above_penalty") PARAMS.enemy_above_penalty = v;
+        else if (key == "head_on_win_bonus")   PARAMS.head_on_win_bonus = v;
+        else if (key == "head_on_lose_penalty") PARAMS.head_on_lose_penalty = v;
+        else if (key == "head_on_even_penalty") PARAMS.head_on_even_penalty = v;
+        else if (key == "top_edge_penalty")    PARAMS.top_edge_penalty = v;
+        else if (key == "side_edge_penalty")   PARAMS.side_edge_penalty = v;
+        else if (key == "ladder_bonus")        PARAMS.ladder_bonus = v;
     }
     f.close();
     return true;
@@ -217,6 +231,35 @@ struct GameState {
         return count;
     }
 
+    int countFreeNeighbors(Coord c, int excludeBirdId = -1) const {
+        int count = 0;
+        for (int d = 0; d < 4; d++) {
+            Coord n = c + DIR_DELTA[d];
+            if (!isCellBlocked(n, excludeBirdId)) count++;
+        }
+        return count;
+    }
+
+    int minOpponentHeadDist(Coord c) const {
+        int best = INT_MAX;
+        for (const auto& bird : birds) {
+            if (!bird.alive || isMyBird(bird.id)) continue;
+            best = min(best, c.manhattan(bird.head()));
+        }
+        return best;
+    }
+
+    bool isEnemyBodyCell(Coord c) const {
+        for (const auto& bird : birds) {
+            if (!bird.alive || isMyBird(bird.id)) continue;
+            int segCount = max(0, (int)bird.body.size() - 1);
+            for (int i = 0; i < segCount; i++) {
+                if (bird.body[i] == c) return true;
+            }
+        }
+        return false;
+    }
+
     // Flood fill to count reachable empty cells from a position
     int floodFill(Coord start, int maxSteps, int excludeBirdId = -1) const {
         if (isCellBlocked(start, excludeBirdId)) return 0;
@@ -318,6 +361,13 @@ double scoreMove(const GameState& state, const Bird& bird, Direction dir) {
     int reachable = state.floodFill(newHead, 12, bird.id);
     score += PARAMS.space_weight * reachable / 50.0;
 
+    // Local mobility: immediate escape options matter more than distant space.
+    int freeNeighbors = state.countFreeNeighbors(newHead, bird.id);
+    score += PARAMS.safety_weight * freeNeighbors * 0.35;
+    if (freeNeighbors <= 1) {
+        score -= PARAMS.safety_weight * 1.6;
+    }
+
     // Dead end penalty
     if (reachable < 4) {
         score -= PARAMS.dead_end_penalty;
@@ -326,21 +376,38 @@ double scoreMove(const GameState& state, const Bird& bird, Direction dir) {
     }
 
     // --- Fall risk ---
-    if (!state.hasSupport(newHead) && !state.isWall(Coord{newHead.x, newHead.y + 1})) {
-        // Check how far we'd fall
+    if (!state.hasSupport(newHead)) {
+        // Estimate where this move settles after gravity and penalize unsafe falls.
         int fallDist = 0;
         Coord fallPos = newHead;
-        while (fallPos.y < state.height && !state.isWall(Coord{fallPos.x, fallPos.y + 1}) &&
-               !state.isApple(Coord{fallPos.x, fallPos.y + 1})) {
-            fallDist++;
-            fallPos.y++;
-            if (fallPos.y >= state.height) {
-                // Would fall off the map!
-                score -= PARAMS.fall_penalty * 10.0;
+        bool fellOffMap = false;
+
+        while (!state.hasSupport(fallPos)) {
+            Coord below = {fallPos.x, fallPos.y + 1};
+            if (!state.isInBounds(below)) {
+                fellOffMap = true;
                 break;
             }
+            fallPos = below;
+            fallDist++;
         }
-        score -= PARAMS.fall_penalty * (1.0 + fallDist * 0.5);
+
+        if (fellOffMap) {
+            score -= PARAMS.fall_penalty * 12.0;
+            return score;
+        }
+
+        score -= PARAMS.fall_penalty * (1.5 + fallDist * 0.9);
+
+        // Falling into a pocket with no exits is usually losing.
+        int postFallReachable = state.floodFill(fallPos, 10, bird.id);
+        int postFallFree = state.countFreeNeighbors(fallPos, bird.id);
+        if (postFallFree <= 1) {
+            score -= PARAMS.fall_penalty * 1.8;
+        }
+        if (postFallReachable < 6) {
+            score -= PARAMS.fall_penalty * 1.2;
+        }
     }
 
     // --- Height preference (higher = safer from gravity) ---
@@ -355,6 +422,28 @@ double scoreMove(const GameState& state, const Bird& bird, Direction dir) {
     int adjWalls = state.countAdjacentWalls(newHead);
     score -= PARAMS.wall_penalty * adjWalls * 0.5;
 
+    // Penalize moving under enemy body columns to reduce collapse traps.
+    for (int y = newHead.y - 1; y >= max(0, newHead.y - 4); y--) {
+        if (state.isEnemyBodyCell({newHead.x, y})) {
+            score -= PARAMS.enemy_above_penalty;
+            break;
+        }
+    }
+
+    // Mild board-edge penalties to avoid getting cornered.
+    if (newHead.y <= 0) {
+        score -= PARAMS.top_edge_penalty;
+    }
+    if (newHead.x <= 0 || newHead.x >= state.width - 1) {
+        score -= PARAMS.side_edge_penalty;
+    }
+
+    // Encourage using bodies/foods as temporary platforms.
+    Coord below = {newHead.x, newHead.y + 1};
+    if (state.isInBounds(below) && (state.isBodyCell(below, bird.id) || state.isApple(below))) {
+        score += PARAMS.ladder_bonus;
+    }
+
     // --- Opponent proximity ---
     for (const auto& obird : state.birds) {
         if (!obird.alive || state.isMyBird(obird.id)) continue;
@@ -362,6 +451,19 @@ double scoreMove(const GameState& state, const Bird& bird, Direction dir) {
         if (d <= 2) {
             score -= PARAMS.opponent_proximity / (1.0 + d);
         }
+
+        if (d == 1) {
+            int myLen = bird.body.size();
+            int oppLen = obird.body.size();
+            if (myLen > oppLen) {
+                score += PARAMS.head_on_win_bonus;
+            } else if (oppLen > myLen) {
+                score -= PARAMS.head_on_lose_penalty;
+            } else {
+                score -= PARAMS.head_on_even_penalty;
+            }
+        }
+
         // Aggression: bonus for being near opponents when we're longer
         if (PARAMS.aggression > 0 && d <= 3) {
             int myLen = bird.body.size();
@@ -369,6 +471,24 @@ double scoreMove(const GameState& state, const Bird& bird, Direction dir) {
             if (myLen > oppLen + 1) {
                 score += PARAMS.aggression * (myLen - oppLen) / (1.0 + d);
             }
+        }
+
+        // Body-block opportunity: pressure weaker enemies only if we keep exits.
+        if (d == 1) {
+            int myLen = bird.body.size();
+            int oppLen = obird.body.size();
+            if (myLen >= oppLen && freeNeighbors >= 2) {
+                score += PARAMS.body_block_bonus * (1.0 + 0.2 * (myLen - oppLen));
+            }
+        }
+    }
+
+    // Avoid overcommitting into enemy zones when we are short.
+    int nearestEnemy = state.minOpponentHeadDist(newHead);
+    if (nearestEnemy <= 2) {
+        int myLen = bird.body.size();
+        if (myLen <= 2) {
+            score -= PARAMS.opponent_proximity * 0.8;
         }
     }
 
