@@ -15,9 +15,6 @@ from genome import Genome
 # Path configuration (relative to repository root)
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 BOT_BINARY = os.path.join(REPO_ROOT, "bot", "bot")
-BOSS_SCRIPT = os.path.join(REPO_ROOT, "config", "Boss.py")
-BOSS1_BINARY = os.path.join(REPO_ROOT, "bot", "boss1")
-BOSS2_BINARY = os.path.join(REPO_ROOT, "bot", "boss2")
 
 
 def _write_genome_config(genome, filepath):
@@ -189,18 +186,9 @@ def get_baseline_opponents():
     """Get the list of baseline opponents for evaluation."""
     opponents = []
 
-    # 1. The WAIT bot (Boss.py)
-    opponents.append(("WaitBot", f"python3 {BOSS_SCRIPT}"))
-
-    # 2. Bot with existing optimized/baseline parameters
+    # Bot with existing optimized/baseline parameters
     baseline_config = os.path.join(REPO_ROOT, "config", "optimized_params.json")
     if os.path.exists(baseline_config) and os.path.exists(BOT_BINARY):
         opponents.append(("BaselineBot", f"{BOT_BINARY} --config {baseline_config}"))
-
-    # 3. Optional custom C++ boss binaries if available.
-    if os.path.exists(BOSS1_BINARY):
-        opponents.append(("Boss1", BOSS1_BINARY))
-    if os.path.exists(BOSS2_BINARY):
-        opponents.append(("Boss2", BOSS2_BINARY))
 
     return opponents
