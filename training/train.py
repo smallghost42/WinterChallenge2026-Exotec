@@ -17,6 +17,7 @@ import json
 import os
 import random
 import sys
+import tempfile
 import time
 
 from genome import Genome
@@ -26,8 +27,6 @@ from match_runner import (
     get_baseline_opponents,
     BOT_BINARY,
     REPO_ROOT,
-    BOSS1_BINARY,
-    BOSS2_BINARY,
 )
 
 
@@ -68,46 +67,6 @@ def build_bot():
         print(f"ERROR: Bot binary not found at {BOT_BINARY}")
         sys.exit(1)
     print("Bot built successfully.")
-
-
-def _find_boss_source(filename):
-    """Find an optional boss source file in common locations."""
-    candidates = [
-        os.path.join(REPO_ROOT, filename),
-        os.path.join(REPO_ROOT, "bot", filename),
-        os.path.join(REPO_ROOT, "training", filename),
-    ]
-    for path in candidates:
-        if os.path.exists(path):
-            return path
-    return None
-
-
-def build_optional_bosses():
-    """Compile optional boss1.cpp / boss2.cpp binaries when present."""
-    bosses = [
-        ("boss1.cpp", BOSS1_BINARY),
-        ("boss2.cpp", BOSS2_BINARY),
-    ]
-
-    for source_name, output_binary in bosses:
-        source_path = _find_boss_source(source_name)
-        if source_path is None:
-            continue
-
-        print(f"Building optional opponent from {source_path}...")
-        ret = os.system(
-            f"g++ -std=c++17 -O2 -Wall -Wextra -o {output_binary} {source_path}"
-        )
-        if ret != 0:
-            print(f"ERROR: Failed to build optional boss source: {source_path}")
-            sys.exit(1)
-
-        if not os.path.exists(output_binary):
-            print(f"ERROR: Optional boss binary not found at {output_binary}")
-            sys.exit(1)
-
-        print(f"Built optional boss binary: {output_binary}")
 
 
 def build_referee():
@@ -185,15 +144,15 @@ def main():
 
     # Build
     build_bot()
-    build_optional_bosses()
     build_referee()
 
     # Get opponents
     opponents = get_baseline_opponents()
     print(f"\nOpponents: {[name for name, _ in opponents]}")
 
-    # Generate match seeds for reproducibility across generations
-    max_opponents = len(opponents) + 4  # account for future PrevBest opponents
+    # Generate match seeds for reproducibility across generations.
+    # After gen 1, elite_count extra opponents are added; pre-allocate seeds accordingly.
+    max_opponents = len(opponents) + args.elite
     match_seeds = [random.randint(1, 2**31) for _ in range(args.matches * max_opponents)]
 
     # Initialize GA
@@ -243,17 +202,16 @@ def main():
 
         # Evolve to next generation (except last)
         if gen < args.generations - 1:
-            # Add previous best genomes as opponents for next generation
-            best_genomes = ga.get_best(2)
-            for i, bg in enumerate(best_genomes):
-                import tempfile
-                fd, path = tempfile.mkstemp(suffix='.json', prefix='prev_best_')
+            # Add elite genomes from this generation as opponents for the next generation.
+            # Remove any previous elite opponents, then add fresh ones.
+            opponents = [o for o in opponents if not o[0].startswith("Elite_")]
+            elite_genomes = ga.get_best(args.elite)
+            for i, bg in enumerate(elite_genomes):
+                fd, path = tempfile.mkstemp(suffix='.json', prefix='elite_')
                 os.close(fd)
                 bg.save(path)
                 opp_cmd = f"{BOT_BINARY} --config {path}"
-                opp_name = f"PrevBest_Gen{gen+1}_{i}"
-                if len(opponents) > 5:
-                    opponents = [o for o in opponents if not o[0].startswith("PrevBest")]
+                opp_name = f"Elite_Gen{gen+1}_{i}"
                 opponents.append((opp_name, opp_cmd))
 
             ga.evolve()
