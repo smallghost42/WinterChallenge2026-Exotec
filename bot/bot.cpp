@@ -1,4 +1,5 @@
 #pragma GCC optimize("O3,inline,omit-frame-pointer,unroll-loops")
+#pragma GCC target("avx2,bmi2")
 
 // =============================================================
 // IMPROVED SNAKEBOT - Key changes vs original:
@@ -53,13 +54,13 @@ struct Params {
     double VORONOI_APPLE_CONTESTED = 0.4;
     double VORONOI_APPLE_LOSE = -5;
     double VORONOI_APPLE_TIE_LOSE = -5;
-    double EAT_BONUS = 20000.0;
+    double EAT_BONUS = 500.0;
 
     // Voronoi territory
-    double TERRITORY_WEIGHT = 1;
-    double TERRITORY_WEIGHT_SMALL = 1.5;
-    double TERRITORY_WEIGHT_SMALL_LATE = 3.0;
-    double TERRITORY_WEIGHT_WINNING_LATE = 1.5;
+    double TERRITORY_WEIGHT = 20.0;
+    double TERRITORY_WEIGHT_SMALL = 30.0;
+    double TERRITORY_WEIGHT_SMALL_LATE = 60.0;
+    double TERRITORY_WEIGHT_WINNING_LATE = 30.0;
     double ENERGY_CONTROL_WEIGHT = 40.0;
     double CLOSEST_ENERGY_WEIGHT = 80.0;
     double CLOSEST_ENERGY_FALLBACK = 40.0;
@@ -84,10 +85,10 @@ struct Params {
     double TWO_MOVES_PEN_SMALL = -20.0;
 
     // NEW: Mobility bonus per safe move above 2
-    double MOBILITY_BONUS = 3.0;
+    double MOBILITY_BONUS = 25.0;
 
     // Head collision
-    double HEAD_CLOSE_SMALLER = -800.0;
+    double HEAD_CLOSE_SMALLER = -1000000.0;
     double HEAD_CLOSE_SMALLER_SMALL = -200.0;
     double HEAD_CLOSE_BIGGER = 50.0;
     double HEAD_CLOSE_BIGGER_SMALL = 30.0;
@@ -104,7 +105,7 @@ struct Params {
     double GRAVITY_RISK_NONE = -300.0;
     double GRAVITY_RISK_HIGH = -30.0;
     double GRAVITY_RISK_LOW = -10.0;
-    double GRAVITY_DEATH = -500.0;
+    double GRAVITY_DEATH = -1000000.0;
     double GRAVITY_EXPLOIT = 1;
     double GRAVITY_EXPLOIT_FALL_DEATH = 200.0;
     double GRAVITY_EXPLOIT_FALL_FAR = 15.0;
@@ -164,25 +165,25 @@ struct Params {
     double GREEDY_TRAPPED_MILD_PEN = -50.0;
 
     // Beam search sizing
-    int BEAM_WIDTH_TINY = 100;
-    int BEAM_DEPTH_TINY = 8;
+    int BEAM_WIDTH_TINY = 80;
+    int BEAM_DEPTH_TINY = 10;
     int BEAM_COMBO_TINY = 20;
-    int BEAM_WIDTH_SMALL = 150;
-    int BEAM_DEPTH_SMALL = 7;
+    int BEAM_WIDTH_SMALL = 120;
+    int BEAM_DEPTH_SMALL = 9;
     int BEAM_COMBO_SMALL = 24;
-    int BEAM_WIDTH_FEW = 180;
-    int BEAM_DEPTH_FEW = 6;
+    int BEAM_WIDTH_FEW = 150;
+    int BEAM_DEPTH_FEW = 8;
     int BEAM_COMBO_FEW = 27;
-    int BEAM_WIDTH_MED = 120;
-    int BEAM_DEPTH_MED = 5;
+    int BEAM_WIDTH_MED = 100;
+    int BEAM_DEPTH_MED = 7;
     int BEAM_COMBO_MED = 18;
-    int BEAM_WIDTH_MANY = 70;
-    int BEAM_DEPTH_MANY = 4;
+    int BEAM_WIDTH_MANY = 60;
+    int BEAM_DEPTH_MANY = 6;
     int BEAM_COMBO_MANY = 12;
     int OPP_COMBO_LIMIT = 9;
     int OPP_COMBO_LIMIT_SMALL = 12;
 
-    double BEAM_TRAPPED_PEN = -5000.0;
+    double BEAM_TRAPPED_PEN = -1000000.0;
 
     // NEW: How many top beam nodes to re-evaluate with full (non-fast) eval at depth 0
     int REEVAL_TOP_K = 30;
